@@ -10,8 +10,8 @@ export type SearchResult = {
 export const webSearch = createServerFn({ method: "GET" })
   .inputValidator((data) => z.object({ q: z.string().min(1) }).parse(data))
   .handler(async ({ data }): Promise<SearchResult[]> => {
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const fcKey = process.env.FIRECRAWL_API_KEY;
+    const lovableKey = process.env["LOVABLE_API_KEY"];
+    const fcKey = process.env["FIRECRAWL_API_KEY"];
     if (!lovableKey || !fcKey) {
       throw new Error("Firecrawl ulanmagan — env o'zgaruvchilar topilmadi");
     }
