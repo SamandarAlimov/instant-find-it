@@ -13,25 +13,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
-      - name: Verify preview search endpoint
+      - name: Probe likely Lovable public URLs
         shell: bash
         run: |
-          set -euo pipefail
-          URL='https://project--4ea9c1b7-411a-456c-8747-8962aaafdbe3-dev.lovable.app/api/search?q=OpenAI&limit=5'
-          TMP="$(mktemp)"
+          set -u
+          CANDIDATES=(
+            "https://instant-find-it.lovable.app"
+            "https://real-search-ai.lovable.app"
+            "https://real-search.lovable.app"
+            "https://web-search-firecrawl.lovable.app"
+            "https://project--4ea9c1b7-411a-456c-8747-8962aaafdbe3-dev.lovable.app"
+          )
 
-          for attempt in $(seq 1 12); do
-            echo "Attempt $attempt: $URL"
-            if curl --fail --silent --show-error --max-time 45 "$URL" -o "$TMP"; then
-              cat "$TMP"
-              echo
-              if python -c 'import json,sys; d=json.load(open(sys.argv[1],encoding="utf-8")); r=d.get("results") or []; e=str(d.get("engine") or ""); err=d.get("error"); print("engine:",e,"results:",len(r),"error:",err); raise SystemExit(0 if e=="firecrawl-lovable" and len(r)>0 and not err else 1)' "$TMP"; then
-                echo "instant-find-it Firecrawl preview is live."
+          for base in "${CANDIDATES[@]}"; do
+            echo "=== $base ==="
+            root_status=$(curl --silent --show-error --max-time 20 -o root.out -w '%{http_code}' "$base/" || true)
+            echo "root HTTP $root_status"
+            head -c 300 root.out || true
+            echo
+
+            search_status=$(curl --silent --show-error --max-time 45 -o search.out -w '%{http_code}' "$base/api/search?q=OpenAI&limit=5" || true)
+            echo "search HTTP $search_status"
+            cat search.out || true
+            echo
+
+            if [ "$search_status" = "200" ]; then
+              if python -c 'import json,sys; d=json.load(open("search.out",encoding="utf-8")); r=d.get("results") or []; e=str(d.get("engine") or ""); err=d.get("error"); print("engine:",e,"results:",len(r),"error:",err); raise SystemExit(0 if e=="firecrawl-lovable" and len(r)>0 and not err else 1)'; then
+                echo "PUBLIC_SEARCH_BASE=$base"
                 exit 0
               fi
             fi
-            sleep 10
           done
 
-          echo "::error::instant-find-it preview search endpoint did not become live."
+          echo "::error::No public Lovable URL with working Firecrawl endpoint was discovered."
           exit 1
