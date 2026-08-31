@@ -1,0 +1,37 @@
+name: Probe Firecrawl Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/probe-firecrawl-preview.yml"
+      - "src/routes/api/search.ts"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Verify preview search endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://project--4ea9c1b7-411a-456c-8747-8962aaafdbe3-dev.lovable.app/api/search?q=OpenAI&limit=5'
+          TMP="$(mktemp)"
+
+          for attempt in $(seq 1 12); do
+            echo "Attempt $attempt: $URL"
+            if curl --fail --silent --show-error --max-time 45 "$URL" -o "$TMP"; then
+              cat "$TMP"
+              echo
+              if python -c 'import json,sys; d=json.load(open(sys.argv[1],encoding="utf-8")); r=d.get("results") or []; e=str(d.get("engine") or ""); err=d.get("error"); print("engine:",e,"results:",len(r),"error:",err); raise SystemExit(0 if e=="firecrawl-lovable" and len(r)>0 and not err else 1)' "$TMP"; then
+                echo "instant-find-it Firecrawl preview is live."
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+
+          echo "::error::instant-find-it preview search endpoint did not become live."
+          exit 1
