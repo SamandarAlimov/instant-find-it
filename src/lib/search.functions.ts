@@ -31,7 +31,10 @@ export const webSearch = createServerFn({ method: "GET" })
     if (!res.ok) {
       throw new Error(`Qidiruv xatosi [${res.status}]: ${JSON.stringify(json)}`);
     }
-    return (json.data ?? []).map((r: SearchResult) => ({
+    const list: SearchResult[] = Array.isArray(json.data)
+      ? json.data
+      : (json.data?.web ?? json.data?.news ?? []);
+    return list.map((r) => ({
       url: r.url,
       title: r.title,
       description: r.description,
