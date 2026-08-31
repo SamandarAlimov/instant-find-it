@@ -3,8 +3,8 @@ import { z } from "zod";
 
 export type SearchResult = {
   url: string;
-  title?: string;
-  description?: string;
+  title?: string | undefined;
+  description?: string | undefined;
 };
 
 export const webSearch = createServerFn({ method: "GET" })
